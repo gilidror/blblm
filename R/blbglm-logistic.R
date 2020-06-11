@@ -7,7 +7,7 @@
 #' @importFrom magrittr %>%
 #' @importFrom utils capture.output
 #' @details
-#' Linear Regression with Little Bag of Bootstraps
+#' Logistic Regression with Little Bag of Bootstraps
 "_PACKAGE"
 
 
@@ -15,20 +15,17 @@
 # from https://github.com/jennybc/googlesheets/blob/master/R/googlesheets.R
 utils::globalVariables(c("."))
 
-#' Bag of Little Bootstraps for Linear Regression
-#' Use Bag of Little Bootstraps to do Linear Regression
+#' Bag of Little Bootstraps for Logistic Regression
+#' Use Bag of Little Bootstraps to do Logistic Regression
 #' @param formula a formula
 #' @param data a data frame or a character vector
 #' @param m an integer giving the number of groups to split the data in
 #' @param B an integer that represents the number of bootstraps
-#' @param parallel logical; if TRUE, run plan(multiprocess, workers = 4) before running the blblm function. In this example, workers = 4 but you can change the value of workers to be the number of workers you want.
+#' @param parallel logical; if TRUE, run plan(multiprocess, workers = 4) before running the blbglm function. In this example, workers = 4 but you can change the value of workers to be the number of workers you want.
 #'
-#' @return blblm
+#' @return blbglm
 #' @export
-#' @examples
-#' fit <- blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100)
-#' coef(fit)
-blblm <- function(formula, data, m = 10, B = 5000, parallel = FALSE) {
+blbglm <- function(formula, data, m = 10, B = 5000, parallel = FALSE) {
   if (is.character(data)) {
     data_list <- data
     n <- sum(map_dbl(data_list, ~ { length(vroom_lines(., altrep = TRUE, progress = FALSE)) - 1L}))
@@ -43,17 +40,17 @@ blblm <- function(formula, data, m = 10, B = 5000, parallel = FALSE) {
     mapfunc <- map
   }
 
-    estimates <- mapfunc(
-      data_list,
-      function(data) {
-        if (is.character(data)) {
-          data <- vroom(.)
-        }
-        lm_each_subsample(formula = formula, data = data, n = n, B = B)
+  estimates <- mapfunc(
+    data_list,
+    function(data) {
+      if (is.character(data)) {
+        data <- vroom(.)
       }
-    )
+      glm_each_subsample(formula = formula, data = data, n = n, B = B)
+    }
+  )
   res <- list(estimates = estimates, formula = formula)
-  class(res) <- "blblm"
+  class(res) <- "blbglm"
   invisible(res)
 }
 
@@ -76,19 +73,19 @@ split_data <- function(data, m) {
 #' @param data a data frame
 #' @param n numeric
 #' @param B numeric
-lm_each_subsample <- function(formula, data, n, B) {
-  replicate(B, lm_each_boot(formula, data, n), simplify = FALSE)
+glm_each_subsample <- function(formula, data, n, B) {
+  replicate(B, glm_each_boot(formula, data, n), simplify = FALSE)
 }
 
 
-#' Regression estimates for blblm data set
-#' Compute the regression estimates for blblm data set
+#' Regression estimates for blbglm data set
+#' Compute the regression estimates for blbglm data set
 #' @param formula a formula
 #' @param data a data frame
 #' @param n an integer
-lm_each_boot <- function(formula, data, n) {
+glm_each_boot <- function(formula, data, n) {
   freqs <- rmultinom(1, n, rep(1, nrow(data)))
-  lm1(formula, data, freqs)
+  glm1(formula, data, freqs, n)
 }
 
 
@@ -97,20 +94,25 @@ lm_each_boot <- function(formula, data, n) {
 #' @param formula an object of class called formula
 #' @param data a data frame, list, or character vector
 #' @param freqs a numeric value
+#' @param n a numeric value
 #'
 #' @return a list of the coefficients and the sigma values
-lm1 <- function(formula, data, freqs) {
+glm1 <- function(formula, data, freqs, n) {
   # drop the original closure of formula,
   # otherwise the formula will pick a wront variable from the global scope.
   environment(formula) <- environment()
-  fit <- lm(formula, data, weights = freqs)
+  fit <- suppressWarnings(glm(formula, data, family = binomial, weights = freqs, maxit = 100))
+  while(!fit$converged){
+    freqs <- rmultinom(1, n, rep(1, nrow(data)))
+    fit <- suppressWarnings(glm(formula, family = binomial, data, weights = freqs, maxit = 100))
+  }
   list(coef = blbcoef(fit), sigma = blbsigma(fit))
 }
 
 
 #' Compute the coefficients from fit
 #' Obtain the coefficients of the parameters of fit
-#' @param fit a fitted blblm model
+#' @param fit a fitted blbglm model
 #'
 #' @return numeric value, return the value of the coefficients of the parameters
 blbcoef <- function(fit) {
@@ -120,7 +122,7 @@ blbcoef <- function(fit) {
 
 #' Residual Standard Deviation Sigma
 #' Computes the Residual Standard Deviation Sigma
-#' @param fit a fitted blblm model
+#' @param fit a fitted blbglm model
 #'
 #' @return a numeric value, the value of the residual standard deviation sigma
 blbsigma <- function(fit) {
@@ -131,15 +133,15 @@ blbsigma <- function(fit) {
   sqrt(sum(w * (e^2)) / (sum(w) - p))
 }
 
-#' Print Blblm Values
-#' Print values returned by blblm model.
+#' Print Blbglm Values
+#' Print values returned by blbglm model.
 #' @param x an R object
 #' @param ... additional arguments
 #'
 #' @export
-#' @method print blblm
-print.blblm <- function(x, ...) {
-  cat("blblm model:", capture.output(x$formula))
+#' @method print blbglm
+print.blbglm <- function(x, ...) {
+  cat("blbglm model:", capture.output(x$formula))
   cat("\n")
 }
 
@@ -153,8 +155,8 @@ print.blblm <- function(x, ...) {
 #'
 #' @return A numeric value
 #' @export
-#' @method sigma blblm
-sigma.blblm <- function(object, confidence = FALSE, level = 0.95, ...) {
+#' @method sigma blbglm
+sigma.blbglm <- function(object, confidence = FALSE, level = 0.95, ...) {
   est <- object$estimates
   sigma <- mean(map_dbl(est, ~ mean(map_dbl(., "sigma"))))
   if (confidence) {
@@ -175,8 +177,8 @@ sigma.blblm <- function(object, confidence = FALSE, level = 0.95, ...) {
 #'
 #' @return the coefficient extract from the object
 #' @export
-#' @method coef blblm
-coef.blblm <- function(object, ...) {
+#' @method coef blbglm
+coef.blbglm <- function(object, ...) {
   est <- object$estimates
   map_mean(est, ~ map_cbind(., "coef") %>% rowMeans())
 }
@@ -190,11 +192,8 @@ coef.blblm <- function(object, ...) {
 #'
 #' @return A matrix or vector that give the lower and upper confidence bounds for the parameter
 #' @export
-#' @method confint blblm
-#' @examples
-#' fit <- blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100)
-#' confint(fit, c("wt", "hp"))
-confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
+#' @method confint blbglm
+confint.blbglm <- function(object, parm = NULL, level = 0.95, ...) {
   if (is.null(parm)) {
     parm <- attr(terms(object$formula), "term.labels")
   }
@@ -210,6 +209,9 @@ confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
   out
 }
 
+# create a function that calculates the probability using the inverse logit expression
+invlogit <- function(x) 1/(1+exp(-x))
+
 #' Prediction Interval for Model Parameters
 #' Make prediction intervals for model paramters
 #' @param object a model object for which prediction is wanted
@@ -220,16 +222,16 @@ confint.blblm <- function(object, parm = NULL, level = 0.95, ...) {
 #'
 #' @return A matrix or vector with columns, depends on the class of the argument
 #' @export
-#' @method predict blblm
-predict.blblm <- function(object, new_data, confidence = FALSE, level = 0.95, ...) {
+#' @method predict blbglm
+predict.blbglm <- function(object, new_data, confidence = FALSE, level = 0.95, ...) {
   est <- object$estimates
   X <- model.matrix(reformulate(attr(terms(object$formula), "term.labels")), new_data)
   if (confidence) {
-    map_mean(est, ~ map_cbind(., ~ X %*% .$coef) %>%
-      apply(1, mean_lwr_upr, level = level) %>%
-      t())
+    map_mean(est, ~ map_cbind(., ~ invlogit(X %*% .$coef)) %>%
+               apply(1, mean_lwr_upr, level = level) %>%
+               t())
   } else {
-    map_mean(est, ~ map_cbind(., ~ X %*% .$coef) %>% rowMeans())
+    map_mean(est, ~ map_cbind(., ~ invlogit(X %*% .$coef)) %>% rowMeans())
   }
 }
 

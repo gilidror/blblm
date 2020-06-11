@@ -1,18 +1,27 @@
 Package: blblm
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Bag of Little Bootstraps
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Gili Dror
+Maintainer: Gili Dror <gdror@ucdavis.edu>
+Description: This package uses bag of little bootstraps to calculate estimators 
+    such as the intercept and slope of a fitted model and confidence intervals.
+    There is also an option to use bag of little bootstraps on a logistic 
+    regression model.
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Suggests: 
-    testthat (>= 2.1.0)
+    testthat (>= 2.1.0),
+    knitr,
+    rmarkdown
 Imports: 
     purrr,
-    magrittr
+    magrittr,
+    furrr,
+    tidyverse,
+    vroom,
+    utils
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.0
+VignetteBuilder: knitr

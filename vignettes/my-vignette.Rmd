@@ -1,0 +1,114 @@
+---
+title: "Blblm Package"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{my-vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup}
+# load the blblm package
+library(blblm)
+library(furrr)
+```
+
+  The Blblm Package allows the users to use functions that implement the bag of little bootstraps algorithm to make predicitions of parameters such as the residual standard deviation or the regression coefficients for linear and logistic regression models. For the bag of little bootstraps algorithm, sampling without replacement is done m times into sizes of B. After that we resample each subsample until the sample size is n (do this r times), then we compute the bootstrap statistic (ex: standard deviation of a variable) for each bootstrap sample, and lastly we take the average of the bootstrap statistics to compute the statistic. When taking a very large amount of bootsraps, it can take a while to do calculations. This package allows the user to use parallelization when doing bag of little bootstraps by using multiple workers, which as a result can speed up the calculation process when large numbers of bootstraps are used.
+
+## Added Features of the Package
+  In the updated blblm package, the user can now also do bag of little bootstraps for a logistic regression model. Some of the functions in the package are specialized for logistic regression. These functions are `blbglm`, `glm_each_subsample`, `glm_each_boot`, `glm1`, `print.blbglm`, `sigma.blbglm`, `coef.blbglm`, `confint.blbglm`, and `predict.blbglm`, which are all explained below in the section below called Package Functions. 
+  
+  The user can now also perform the bag of little bootstraps algorithm with multiple workers by using the furrr package. If the user wants to to use multiple workers, they have to run `plan(multiprocess, workers = cl)` where cl is a number that indicated how many workers they want before running the `blblm` or the `blbglm` function. After running the `plan` function, they have to set the argument called parallel of the `blblm` function equal to TRUE. By default the parallel argument is set equal to FALSE. Therefore, if the user does not indicate that parallel is true, then the function will be run using a single worker. Using multiple workers can increase the efficiency of the package especially for very large. Here is an example of how to use mutliple cores for the blblm package.
+```{r, warning = FALSE}
+# using 4 cores 
+plan(multiprocess, workers = 4)
+fit <- blblm(mpg ~ wt * hp, data = mtcars, m = 4, B = 1000, parallel = TRUE)
+```
+  
+  Another added change that has been made to the package is the option for the user to specify a list of files of datasets instead of loading the whole dataset in the main process that is then distributed to the works. When a user inputs a list of files, each file would then be loaded in the workers to minimize memory usage. The argument called data in the `blblm` and the `blbglm` functions is where the user can specify their list of files. If the user does not enter a list of files in the data argument, the `blblm` and the `blbglm` functions will split the dataset that they enter into m approximately equal sized subgroups where m is a parameter of these functions that is specificed by the user. 
+
+
+## Important Package Functions
+
+
+`blblm(formula, data, m = 10, B = 5000, parallel = FALSE)`:
+
+This functions fits the data inputed in the data argument to a linear regression model using bag of little bootstraps. 
+
+`blbglm(formula, data, m = 10, B = 5000, parallel = FALSE)`:
+
+This functions fits the data inputed in the data argument to a logistic regression model using bag of little bootstraps.
+
+`split_data(data, m)`:
+
+This function splits a dataset inputed by the user into m approximately equal sized subgroups.
+
+`lm_each_subsample(formula, data, n, B)`:
+
+This function repeats lm_each_boot(formula) B times and does B bootstraps for a subsample.
+
+`lm_each_boot(formula, data, n)`:
+
+This function calculates the frequency for each bootstrap sample, does bootstrapping for a subsample, and computes the linear regression estimates for a bag of little bootstraps dataset.
+
+`glm_each_boot(formula, data, n)`:
+
+This function calculates the frequency for each bootstrap sample, does bootstrapping for a subsample, and computes the logistic regression estimates for a bag of little bootstraps dataset.
+
+`lm1(formula, data, freqs)`:
+
+This function gives the linear regression estimates based on the given number of repitions and extracts the regresion coefficients and the error standard deviation.
+
+`glm1(formula, data, freqs, n)`:
+
+This function gives the logistic regression estimates based on the given number of repitions and extracts the regresion coefficients and the error standard deviation.
+
+`blbcoef(fit)`:
+
+This functions compute coefficients of the parameters of the fitted model.
+
+`blbsigma(fit)`:
+
+This function computes standard deviation of the residuals of the fitted model.
+
+`print.blblm(x, ...)`:
+
+This function prints the result of `blblm`.
+
+`print.blbglm(x, ...)`:
+
+This function prints the result of `blbglm`.
+
+`sigma.blblm(object, confidence = FALSE, level = 0.95, ...)`:
+
+This function gives an upper and lower quantile value for the standard deviation of the linear regression model which depends on the value the user puts for the level argument. 
+
+`sigma.blbglm(object, confidence = FALSE, level = 0.95, ...)`:
+
+This function gives an upper and lower quantile value for the standard deviation of the logistic regression model which depends on the value the user puts for the level argument. 
+
+`coef.blblm(object, ...)`:
+
+This function gives an upper and lower quantile value for the standard deviation of the linear regression model which depends on the value the user puts for the level argument. 
+
+`coef.blbglm(object, ...)`:
+
+This function gives an upper and lower quantile value for the standard deviation of the logistic regression model which depends on the value the user puts for the level argument.  
+
+`confint.blblm(object, parm = NULL, level = 0.95, ...)`:
+
+This function calculates confidence interval of each of the parameters in the subsamples and then calculates the mean of the lower values of the intervals and the mean of the upper value of the intervals to give the bag of little bootstraps estimate of the confidence interval for the parameters of the linear regression model.
+
+`confint.blbglm(object, parm = NULL, level = 0.95, ...)`:
+
+This function calculates confidence interval of each of the parameters in the subsamples and then calculates the mean of the lower values of the intervals and the mean of the upper value of the intervals to give the bag of little bootstraps estimate of the confidence interval for the parameters of the logistic regression model.
+
+`predict.blblm(object, new_data, confidence = FALSE, level = 0.95, ...)`:
+
+This function calculates prediction interval of each of the parameters in the subsamples and then calculates the mean of the lower values of the intervals and the mean of the upper value of the intervals to give the bag of little bootstraps estimate of the prediction intervals for the parameters of the linear regression model.
+
+`predict.blbglm(object, new_data, confidence = FALSE, level = 0.95, ...)`:
+
+This function calculates prediction interval of each of the parameters in the subsamples and then calculates the mean of the lower values of the intervals and the mean of the upper value of the intervals to give the bag of little bootstraps estimate of the prediction interval for the parameters of the logistic regression model. I created a function called `invlogit(x)` that returns the inverse logit of a value the using the inverse logit expression that is 1/(1+exp(-x)). I used `invlogit(x)` in my `predict.blbglm` function to help calculate the prediction intervals.
+
+

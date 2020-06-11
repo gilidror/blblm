@@ -2,10 +2,19 @@
 % Please edit documentation in R/blblm.R
 \name{lm_each_boot}
 \alias{lm_each_boot}
-\title{compute the regression estimates for a blb dataset}
+\title{Regression estimates for blblm data set
+Compute the regression estimates for blblm data set}
 \usage{
 lm_each_boot(formula, data, n)
 }
+\arguments{
+\item{formula}{a formula}
+
+\item{data}{a data frame}
+
+\item{n}{an integer}
+}
 \description{
-compute the regression estimates for a blb dataset
+Regression estimates for blblm data set
+Compute the regression estimates for blblm data set
 }
